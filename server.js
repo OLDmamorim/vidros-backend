@@ -59,9 +59,10 @@ app.use((err, req, res, next) => {
 });
 
 // Iniciar servidor
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor a correr na porta ${PORT}`);
   console.log(`📡 Ambiente: ${process.env.NODE_ENV}`);
+  console.log(`🌐 Escutando em 0.0.0.0:${PORT}`);
 });
 
 module.exports = app;
