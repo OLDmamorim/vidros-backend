@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": ["api", "vidros", "gestao"],
+  "keywords": ["api", "vidros", "gestao"], 
   "author": "",
   "license": "ISC",
   "dependencies": {
