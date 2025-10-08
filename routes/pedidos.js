@@ -128,14 +128,15 @@ router.get('/:id', async (req, res) => {
       WHERE pu.pedido_id = $1
     `;
 
-    // Se for utilizador de loja, só vê updates visíveis
+    // Se for utilizador de loja, vê updates visíveis OU as suas próprias mensagens
     if (user.role === 'loja') {
-      updatesQuery += ' AND pu.visivel_loja = true';
+      updatesQuery += ' AND (pu.visivel_loja = true OR pu.user_id = $2)';
     }
 
     updatesQuery += ' ORDER BY pu.created_at DESC';
 
-    const updatesResult = await pool.query(updatesQuery, [id]);
+    const updatesParams = user.role === 'loja' ? [id, user.id] : [id];
+    const updatesResult = await pool.query(updatesQuery, updatesParams);
     pedido.updates = updatesResult.rows;
 
     // Se for loja, atualizar última visualização
