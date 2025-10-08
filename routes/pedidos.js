@@ -197,20 +197,49 @@ router.post('/', authorizeRole('loja'), async (req, res) => {
   }
 });
 
-// Atualizar pedido (status - apenas departamento e admin)
+// Atualizar pedido (apenas departamento e admin)
 router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, valor, custo, fornecedor } = req.body;
 
-    if (!status) {
-      return res.status(400).json({ error: 'Status é obrigatório' });
+    // Construir query dinamicamente
+    const updates = [];
+    const params = [];
+    let paramCount = 1;
+
+    if (status) {
+      updates.push(`status = $${paramCount}`);
+      params.push(status);
+      paramCount++;
     }
 
-    const result = await pool.query(
-      'UPDATE pedidos SET status = $1 WHERE id = $2 RETURNING *',
-      [status, id]
-    );
+    if (valor !== undefined) {
+      updates.push(`valor = $${paramCount}`);
+      params.push(valor);
+      paramCount++;
+    }
+
+    if (custo !== undefined) {
+      updates.push(`custo = $${paramCount}`);
+      params.push(custo);
+      paramCount++;
+    }
+
+    if (fornecedor !== undefined) {
+      updates.push(`fornecedor = $${paramCount}`);
+      params.push(fornecedor);
+      paramCount++;
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+    }
+
+    params.push(id);
+    const query = `UPDATE pedidos SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`;
+
+    const result = await pool.query(query, params);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Pedido não encontrado' });
@@ -222,7 +251,6 @@ router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
     res.status(500).json({ error: 'Erro ao atualizar pedido' });
   }
 });
-
 // Adicionar foto a um pedido
 router.post('/:id/fotos', async (req, res) => {
   try {
@@ -265,11 +293,11 @@ router.post('/:id/fotos', async (req, res) => {
 router.post('/:id/updates', authorizeRole('departamento', 'admin'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { tipo, conteudo, preco, prazo_dias, visivel_loja } = req.body;
+    const { mensagem, visivel_loja } = req.body;
     const user = req.user;
 
-    if (!tipo || !conteudo) {
-      return res.status(400).json({ error: 'Tipo e conteúdo são obrigatórios' });
+    if (!mensagem || !mensagem.trim()) {
+      return res.status(400).json({ error: 'Mensagem é obrigatória' });
     }
 
     // Verificar se o pedido existe
@@ -280,8 +308,8 @@ router.post('/:id/updates', authorizeRole('departamento', 'admin'), async (req, 
     }
 
     const result = await pool.query(
-      'INSERT INTO pedido_updates (pedido_id, user_id, tipo, conteudo, preco, prazo_dias, visivel_loja) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [id, user.id, tipo, conteudo, preco, prazo_dias, visivel_loja || false]
+      'INSERT INTO pedido_updates (pedido_id, user_id, mensagem, visivel_loja) VALUES ($1, $2, $3, $4) RETURNING *',
+      [id, user.id, mensagem, visivel_loja !== false]
     );
 
     res.status(201).json(result.rows[0]);
