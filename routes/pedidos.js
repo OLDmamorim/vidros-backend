@@ -164,10 +164,15 @@ router.get('/:id', async (req, res) => {
     const updatesResult = await pool.query(updatesQuery, updatesParams);
     pedido.updates = updatesResult.rows;
 
-    // Se for loja, atualizar última visualização
+    // Atualizar última visualização
     if (user.role === 'loja') {
       await pool.query(
         'UPDATE pedidos SET ultima_visualizacao_loja = NOW() WHERE id = $1',
+        [id]
+      );
+    } else if (user.role === 'departamento' || user.role === 'admin') {
+      await pool.query(
+        'UPDATE pedidos SET ultima_visualizacao_dept = NOW() WHERE id = $1',
         [id]
       );
     }
