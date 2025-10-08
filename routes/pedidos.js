@@ -267,9 +267,6 @@ router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
       return res.status(400).json({ error: 'Nenhum campo para atualizar' });
     }
 
-    // Adicionar updated_at para que o sistema de notificações funcione
-    updates.push(`updated_at = NOW()`);
-
     params.push(id);
     const query = `UPDATE pedidos SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`;
 
