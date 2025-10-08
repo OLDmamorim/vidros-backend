@@ -19,12 +19,7 @@ router.get('/', async (req, res) => {
         u.name as user_name,
         (SELECT COUNT(*) FROM pedido_fotos WHERE pedido_id = p.id) as total_fotos,
         (SELECT COUNT(*) FROM pedido_updates WHERE pedido_id = p.id) as total_updates,
-        (SELECT MAX(created_at) FROM pedido_updates WHERE pedido_id = p.id) as ultima_atualizacao,
-        CASE 
-          WHEN p.ultima_visualizacao_loja IS NULL THEN true
-          WHEN (SELECT MAX(created_at) FROM pedido_updates WHERE pedido_id = p.id) > p.ultima_visualizacao_loja THEN true
-          ELSE false
-        END as tem_atualizacoes_novas
+        (SELECT MAX(created_at) FROM pedido_updates WHERE pedido_id = p.id) as ultima_atualizacao
       FROM pedidos p
       JOIN lojas l ON p.loja_id = l.id
       JOIN users u ON p.user_id = u.id
@@ -69,7 +64,36 @@ router.get('/', async (req, res) => {
     query += ' ORDER BY p.created_at DESC';
 
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    
+    // Calcular tem_atualizacoes_novas para cada pedido
+    const pedidosComNotificacao = result.rows.map(pedido => {
+      let temAtualizacoesNovas = false;
+      
+      // Não piscar pedidos cancelados ou concluídos
+      if (pedido.status === 'cancelado' || pedido.status === 'concluido') {
+        return { ...pedido, tem_atualizacoes_novas: false };
+      }
+      
+      if (user.role === 'loja') {
+        // Para loja: piscar se há updates depois da última visualização
+        if (pedido.ultima_atualizacao && pedido.ultima_visualizacao_loja) {
+          temAtualizacoesNovas = new Date(pedido.ultima_atualizacao) > new Date(pedido.ultima_visualizacao_loja);
+        } else if (pedido.ultima_atualizacao && !pedido.ultima_visualizacao_loja) {
+          temAtualizacoesNovas = true;
+        }
+      } else if (user.role === 'departamento' || user.role === 'admin') {
+        // Para departamento: piscar se há updates depois da última visualização do dept
+        if (pedido.ultima_atualizacao && pedido.ultima_visualizacao_dept) {
+          temAtualizacoesNovas = new Date(pedido.ultima_atualizacao) > new Date(pedido.ultima_visualizacao_dept);
+        } else if (pedido.ultima_atualizacao && !pedido.ultima_visualizacao_dept) {
+          temAtualizacoesNovas = true;
+        }
+      }
+      
+      return { ...pedido, tem_atualizacoes_novas: temAtualizacoesNovas };
+    });
+    
+    res.json(pedidosComNotificacao);
   } catch (error) {
     console.error('Erro ao listar pedidos:', error);
     res.status(500).json({ error: 'Erro ao listar pedidos' });
