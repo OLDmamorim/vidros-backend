@@ -205,6 +205,38 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
+// Reset password de utilizador
+router.post('/users/:id/reset-password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { new_password } = req.body;
+
+    if (!new_password || new_password.length < 6) {
+      return res.status(400).json({ error: 'Password deve ter pelo menos 6 caracteres' });
+    }
+
+    // Hash da nova password
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    const result = await pool.query(
+      'UPDATE users SET password = $1 WHERE id = $2 RETURNING id, name, email, role',
+      [hashedPassword, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Utilizador não encontrado' });
+    }
+
+    res.json({ 
+      message: 'Password alterada com sucesso',
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Erro ao repor password:', error);
+    res.status(500).json({ error: 'Erro ao repor password' });
+  }
+});
+
 // ===== ESTATÍSTICAS =====
 
 // Obter estatísticas gerais
