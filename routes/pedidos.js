@@ -19,7 +19,15 @@ router.get('/', async (req, res) => {
         u.name as user_name,
         (SELECT COUNT(*) FROM pedido_fotos WHERE pedido_id = p.id) as total_fotos,
         (SELECT COUNT(*) FROM pedido_updates WHERE pedido_id = p.id) as total_updates,
-        (SELECT MAX(created_at) FROM pedido_updates WHERE pedido_id = p.id) as ultima_atualizacao
+        (SELECT MAX(created_at) FROM pedido_updates WHERE pedido_id = p.id) as ultima_atualizacao,
+        (
+          SELECT us.role 
+          FROM pedido_updates pu 
+          JOIN users us ON pu.user_id = us.id 
+          WHERE pu.pedido_id = p.id 
+          ORDER BY pu.created_at DESC 
+          LIMIT 1
+        ) as ultimo_update_role
       FROM pedidos p
       JOIN lojas l ON p.loja_id = l.id
       JOIN users u ON p.user_id = u.id
@@ -75,18 +83,24 @@ router.get('/', async (req, res) => {
       }
       
       if (user.role === 'loja') {
-        // Para loja: piscar se há updates depois da última visualização
-        if (pedido.ultima_atualizacao && pedido.ultima_visualizacao_loja) {
-          temAtualizacoesNovas = new Date(pedido.ultima_atualizacao) > new Date(pedido.ultima_visualizacao_loja);
-        } else if (pedido.ultima_atualizacao && !pedido.ultima_visualizacao_loja) {
-          temAtualizacoesNovas = true;
+        // Para loja: piscar APENAS se o último update foi feito pelo departamento/admin
+        // E se há updates depois da última visualização da loja
+        if (pedido.ultimo_update_role && (pedido.ultimo_update_role === 'departamento' || pedido.ultimo_update_role === 'admin')) {
+          if (pedido.ultima_atualizacao && pedido.ultima_visualizacao_loja) {
+            temAtualizacoesNovas = new Date(pedido.ultima_atualizacao) > new Date(pedido.ultima_visualizacao_loja);
+          } else if (pedido.ultima_atualizacao && !pedido.ultima_visualizacao_loja) {
+            temAtualizacoesNovas = true;
+          }
         }
       } else if (user.role === 'departamento' || user.role === 'admin') {
-        // Para departamento: piscar se há updates depois da última visualização do dept
-        if (pedido.ultima_atualizacao && pedido.ultima_visualizacao_dept) {
-          temAtualizacoesNovas = new Date(pedido.ultima_atualizacao) > new Date(pedido.ultima_visualizacao_dept);
-        } else if (pedido.ultima_atualizacao && !pedido.ultima_visualizacao_dept) {
-          temAtualizacoesNovas = true;
+        // Para departamento: piscar APENAS se o último update foi feito pela loja
+        // E se há updates depois da última visualização do dept
+        if (pedido.ultimo_update_role && pedido.ultimo_update_role === 'loja') {
+          if (pedido.ultima_atualizacao && pedido.ultima_visualizacao_dept) {
+            temAtualizacoesNovas = new Date(pedido.ultima_atualizacao) > new Date(pedido.ultima_visualizacao_dept);
+          } else if (pedido.ultima_atualizacao && !pedido.ultima_visualizacao_dept) {
+            temAtualizacoesNovas = true;
+          }
         }
       }
       
