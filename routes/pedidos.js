@@ -292,7 +292,7 @@ router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
         
         await pool.query(
           'INSERT INTO pedido_updates (pedido_id, user_id, tipo, conteudo, visivel_loja) VALUES ($1, $2, $3, $4, $5)',
-          [id, user.id, 'sistema', mensagem, true]
+          [id, user.id, 'geral', mensagem, true]
         );
         console.log('Update automático criado com sucesso');
       }
