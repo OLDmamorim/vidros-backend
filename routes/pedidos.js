@@ -122,7 +122,8 @@ router.get('/:id', async (req, res) => {
     let updatesQuery = `
       SELECT 
         pu.*,
-        u.name as user_name
+        u.name as user_name,
+        u.role as user_role
       FROM pedido_updates pu
       JOIN users u ON pu.user_id = u.id
       WHERE pu.pedido_id = $1
@@ -133,7 +134,7 @@ router.get('/:id', async (req, res) => {
       updatesQuery += ' AND (pu.visivel_loja = true OR pu.user_id = $2)';
     }
 
-    updatesQuery += ' ORDER BY pu.created_at DESC';
+    updatesQuery += ' ORDER BY pu.created_at ASC';
 
     const updatesParams = user.role === 'loja' ? [id, user.id] : [id];
     const updatesResult = await pool.query(updatesQuery, updatesParams);
