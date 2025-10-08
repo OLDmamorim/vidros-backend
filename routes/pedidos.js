@@ -232,12 +232,13 @@ router.post('/', authorizeRole('loja'), async (req, res) => {
 router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, valor, custo, fornecedor } = req.body;
+    const { status, valor, disponibilidade, custo, fornecedor } = req.body;
     
     console.log('=== UPDATE PEDIDO DEBUG ===');
     console.log('ID:', id);
     console.log('Status recebido:', status);
     console.log('Valor:', valor);
+    console.log('Disponibilidade:', disponibilidade);
     console.log('Custo:', custo);
     console.log('Fornecedor:', fornecedor);
 
@@ -255,6 +256,12 @@ router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
     if (valor !== undefined) {
       updates.push(`valor = $${paramCount}`);
       params.push(valor);
+      paramCount++;
+    }
+
+    if (disponibilidade !== undefined) {
+      updates.push(`disponibilidade = $${paramCount}`);
+      params.push(disponibilidade);
       paramCount++;
     }
 
