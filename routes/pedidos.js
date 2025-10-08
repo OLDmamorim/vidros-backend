@@ -233,6 +233,13 @@ router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { status, valor, custo, fornecedor } = req.body;
+    
+    console.log('=== UPDATE PEDIDO DEBUG ===');
+    console.log('ID:', id);
+    console.log('Status recebido:', status);
+    console.log('Valor:', valor);
+    console.log('Custo:', custo);
+    console.log('Fornecedor:', fornecedor);
 
     // Construir query dinamicamente
     const updates = [];
