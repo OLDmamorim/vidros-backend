@@ -283,6 +283,24 @@ router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
       return res.status(404).json({ error: 'Pedido não encontrado' });
     }
 
+    // Criar update automático para notificar a loja das alterações
+    try {
+      const user = req.user;
+      if (user && user.id) {
+        let mensagem = 'Pedido atualizado';
+        if (status) mensagem = `Status alterado para: ${status}`;
+        
+        await pool.query(
+          'INSERT INTO pedido_updates (pedido_id, user_id, tipo, conteudo, visivel_loja) VALUES ($1, $2, $3, $4, $5)',
+          [id, user.id, 'sistema', mensagem, true]
+        );
+        console.log('Update automático criado com sucesso');
+      }
+    } catch (updateError) {
+      console.error('Erro ao criar update automático:', updateError);
+      // Não falhar a requisição principal se o update automático falhar
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Erro ao atualizar pedido:', error);
