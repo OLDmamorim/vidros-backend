@@ -267,6 +267,9 @@ router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
       return res.status(400).json({ error: 'Nenhum campo para atualizar' });
     }
 
+    // Adicionar updated_at para que o sistema de notificações funcione
+    updates.push(`updated_at = NOW()`);
+
     params.push(id);
     const query = `UPDATE pedidos SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`;
 
@@ -275,6 +278,15 @@ router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Pedido não encontrado' });
     }
+
+    // Criar um update automático para notificar a loja
+    let mensagemAuto = 'Pedido atualizado pelo departamento';
+    if (status) mensagemAuto = `Status alterado para: ${status}`;
+    
+    await pool.query(
+      'INSERT INTO pedido_updates (pedido_id, user_id, tipo, conteudo, visivel_loja) VALUES ($1, $2, $3, $4, $5)',
+      [id, user.id, 'sistema', mensagemAuto, true]
+    );
 
     res.json(result.rows[0]);
   } catch (error) {
