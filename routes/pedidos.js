@@ -254,7 +254,7 @@ router.post('/', authorizeRole('loja'), async (req, res) => {
 router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, valor, disponibilidade, custo, fornecedor } = req.body;
+    const { status, valor, disponibilidade, custo, fornecedor, notas } = req.body;
     
     console.log('=== UPDATE PEDIDO DEBUG ===');
     console.log('ID:', id);
@@ -263,6 +263,7 @@ router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
     console.log('Disponibilidade:', disponibilidade);
     console.log('Custo:', custo);
     console.log('Fornecedor:', fornecedor);
+    console.log('Notas:', notas);
 
     // Construir query dinamicamente
     const updates = [];
@@ -296,6 +297,12 @@ router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
     if (fornecedor !== undefined) {
       updates.push(`fornecedor = $${paramCount}`);
       params.push(fornecedor);
+      paramCount++;
+    }
+
+    if (notas !== undefined) {
+      updates.push(`notas = $${paramCount}`);
+      params.push(notas);
       paramCount++;
     }
 
