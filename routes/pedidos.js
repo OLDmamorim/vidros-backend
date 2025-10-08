@@ -308,8 +308,8 @@ router.post('/:id/updates', authorizeRole('departamento', 'admin'), async (req, 
     }
 
     const result = await pool.query(
-      'INSERT INTO pedido_updates (pedido_id, user_id, mensagem, visivel_loja) VALUES ($1, $2, $3, $4) RETURNING *',
-      [id, user.id, mensagem, visivel_loja !== false]
+      'INSERT INTO pedido_updates (pedido_id, user_id, tipo, conteudo, visivel_loja) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [id, user.id, 'geral', mensagem, visivel_loja !== false]
     );
 
     res.status(201).json(result.rows[0]);
