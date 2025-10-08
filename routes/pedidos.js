@@ -93,9 +93,17 @@ router.get('/', async (req, res) => {
           }
         }
       } else if (user.role === 'departamento' || user.role === 'admin') {
-        // Para departamento: piscar APENAS se o último update foi feito pela loja
-        // E se há updates depois da última visualização do dept
-        if (pedido.ultimo_update_role && pedido.ultimo_update_role === 'loja') {
+        // Para departamento: piscar em 3 casos:
+        // 1. Pedido novo (sem updates ainda) e nunca visualizado
+        // 2. Último update foi da loja
+        // 3. Pedido criado mas nunca visualizado pelo departamento
+        
+        // Caso 1: Pedido novo sem updates
+        if (!pedido.ultimo_update_role && !pedido.ultima_visualizacao_dept) {
+          temAtualizacoesNovas = true;
+        }
+        // Caso 2: Último update foi da loja
+        else if (pedido.ultimo_update_role && pedido.ultimo_update_role === 'loja') {
           if (pedido.ultima_atualizacao && pedido.ultima_visualizacao_dept) {
             temAtualizacoesNovas = new Date(pedido.ultima_atualizacao) > new Date(pedido.ultima_visualizacao_dept);
           } else if (pedido.ultima_atualizacao && !pedido.ultima_visualizacao_dept) {
