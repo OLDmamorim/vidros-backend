@@ -289,8 +289,8 @@ router.post('/:id/fotos', async (req, res) => {
   }
 });
 
-// Adicionar update a um pedido (apenas departamento e admin)
-router.post('/:id/updates', authorizeRole('departamento', 'admin'), async (req, res) => {
+// Adicionar update a um pedido (loja, departamento e admin)
+router.post('/:id/updates', authorizeRole('loja', 'departamento', 'admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { mensagem, visivel_loja } = req.body;
@@ -300,11 +300,19 @@ router.post('/:id/updates', authorizeRole('departamento', 'admin'), async (req, 
       return res.status(400).json({ error: 'Mensagem é obrigatória' });
     }
 
-    // Verificar se o pedido existe
-    const checkResult = await pool.query('SELECT * FROM pedidos WHERE id = $1', [id]);
+    // Verificar se o pedido existe e se a loja tem permissão
+    let checkQuery = 'SELECT * FROM pedidos WHERE id = $1';
+    const checkParams = [id];
+    
+    if (user.role === 'loja') {
+      checkQuery += ' AND loja_id = $2';
+      checkParams.push(user.loja_id);
+    }
+    
+    const checkResult = await pool.query(checkQuery, checkParams);
 
     if (checkResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Pedido não encontrado' });
+      return res.status(404).json({ error: 'Pedido não encontrado ou sem permissão' });
     }
 
     const result = await pool.query(
