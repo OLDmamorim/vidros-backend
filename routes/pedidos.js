@@ -19,12 +19,7 @@ router.get('/', async (req, res) => {
         u.name as user_name,
         (SELECT COUNT(*) FROM pedido_fotos WHERE pedido_id = p.id) as total_fotos,
         (SELECT COUNT(*) FROM pedido_updates WHERE pedido_id = p.id) as total_updates,
-        (SELECT MAX(created_at) FROM pedido_updates WHERE pedido_id = p.id) as ultima_atualizacao,
-        CASE 
-          WHEN p.ultima_visualizacao_loja IS NULL THEN true
-          WHEN (SELECT MAX(created_at) FROM pedido_updates WHERE pedido_id = p.id) > p.ultima_visualizacao_loja THEN true
-          ELSE false
-        END as tem_atualizacoes_novas
+        (SELECT MAX(created_at) FROM pedido_updates WHERE pedido_id = p.id) as ultima_atualizacao
       FROM pedidos p
       JOIN lojas l ON p.loja_id = l.id
       JOIN users u ON p.user_id = u.id
@@ -69,7 +64,49 @@ router.get('/', async (req, res) => {
     query += ' ORDER BY p.created_at DESC';
 
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    
+    // Para cada pedido, verificar se tem atualizações novas
+    const pedidosComNotificacao = await Promise.all(result.rows.map(async (pedido) => {
+      let temAtualizacoesNovas = false;
+      
+      if (user.role === 'loja') {
+        // Para loja: verificar se há updates do departamento/admin depois da última visualização
+        const queryUpdates = `
+          SELECT COUNT(*) as count
+          FROM pedido_updates pu
+          JOIN users u ON pu.user_id = u.id
+          WHERE pu.pedido_id = $1
+            AND u.role IN ('departamento', 'admin')
+            AND pu.visivel_loja = true
+            AND (
+              $2 IS NULL OR pu.created_at > $2
+            )
+        `;
+        const updatesResult = await pool.query(queryUpdates, [pedido.id, pedido.ultima_visualizacao_loja]);
+        temAtualizacoesNovas = parseInt(updatesResult.rows[0].count) > 0;
+      } else if (user.role === 'departamento' || user.role === 'admin') {
+        // Para departamento: verificar se há updates da loja depois da última visualização do departamento
+        const queryUpdates = `
+          SELECT COUNT(*) as count
+          FROM pedido_updates pu
+          JOIN users u ON pu.user_id = u.id
+          WHERE pu.pedido_id = $1
+            AND u.role = 'loja'
+            AND (
+              $2 IS NULL OR pu.created_at > $2
+            )
+        `;
+        const updatesResult = await pool.query(queryUpdates, [pedido.id, pedido.ultima_visualizacao_dept]);
+        temAtualizacoesNovas = parseInt(updatesResult.rows[0].count) > 0;
+      }
+      
+      return {
+        ...pedido,
+        tem_atualizacoes_novas: temAtualizacoesNovas
+      };
+    }));
+    
+    res.json(pedidosComNotificacao);
   } catch (error) {
     console.error('Erro ao listar pedidos:', error);
     res.status(500).json({ error: 'Erro ao listar pedidos' });
@@ -140,10 +177,15 @@ router.get('/:id', async (req, res) => {
     const updatesResult = await pool.query(updatesQuery, updatesParams);
     pedido.updates = updatesResult.rows;
 
-    // Se for loja, atualizar última visualização
+    // Atualizar última visualização
     if (user.role === 'loja') {
       await pool.query(
         'UPDATE pedidos SET ultima_visualizacao_loja = NOW() WHERE id = $1',
+        [id]
+      );
+    } else if (user.role === 'departamento' || user.role === 'admin') {
+      await pool.query(
+        'UPDATE pedidos SET ultima_visualizacao_dept = NOW() WHERE id = $1',
         [id]
       );
     }
