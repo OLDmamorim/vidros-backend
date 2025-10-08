@@ -144,19 +144,19 @@ router.post('/', authorizeRole('loja'), async (req, res) => {
   const client = await pool.connect();
   
   try {
-    const { marca_carro, modelo_carro, ano_carro, tipo_vidro, descricao, fotos } = req.body;
+    const { matricula, marca_carro, modelo_carro, ano_carro, tipo_vidro, descricao, fotos } = req.body;
     const user = req.user;
 
-    if (!marca_carro || !modelo_carro || !tipo_vidro) {
-      return res.status(400).json({ error: 'Marca, modelo e tipo de vidro são obrigatórios' });
+    if (!matricula || !marca_carro || !modelo_carro || !tipo_vidro) {
+      return res.status(400).json({ error: 'Matrícula, marca, modelo e tipo de vidro são obrigatórios' });
     }
 
     await client.query('BEGIN');
 
     // Criar pedido
     const pedidoResult = await client.query(
-      'INSERT INTO pedidos (loja_id, user_id, marca_carro, modelo_carro, ano_carro, tipo_vidro, descricao, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [user.loja_id, user.id, marca_carro, modelo_carro, ano_carro, tipo_vidro, descricao, 'pendente']
+      'INSERT INTO pedidos (loja_id, user_id, matricula, marca_carro, modelo_carro, ano_carro, tipo_vidro, descricao, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+      [user.loja_id, user.id, matricula, marca_carro, modelo_carro, ano_carro, tipo_vidro, descricao, 'pendente']
     );
 
     const pedido = pedidoResult.rows[0];
