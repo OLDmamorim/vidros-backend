@@ -280,18 +280,25 @@ router.put('/:id', authorizeRole('departamento', 'admin'), async (req, res) => {
     }
 
     // Criar um update automático para notificar a loja
-    let mensagemAuto = 'Pedido atualizado pelo departamento';
-    if (status) mensagemAuto = `Status alterado para: ${status}`;
-    
-    await pool.query(
-      'INSERT INTO pedido_updates (pedido_id, user_id, tipo, conteudo, visivel_loja) VALUES ($1, $2, $3, $4, $5)',
-      [id, user.id, 'sistema', mensagemAuto, true]
-    );
+    try {
+      const user = req.user;
+      let mensagemAuto = 'Pedido atualizado pelo departamento';
+      if (status) mensagemAuto = `Status alterado para: ${status}`;
+      
+      await pool.query(
+        'INSERT INTO pedido_updates (pedido_id, user_id, tipo, conteudo, visivel_loja) VALUES ($1, $2, $3, $4, $5)',
+        [id, user.id, 'sistema', mensagemAuto, true]
+      );
+    } catch (updateError) {
+      console.error('Erro ao criar update automático:', updateError);
+      // Não falhar a requisição se o update automático falhar
+    }
 
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Erro ao atualizar pedido:', error);
-    res.status(500).json({ error: 'Erro ao atualizar pedido' });
+    console.error('Stack:', error.stack);
+    res.status(500).json({ error: 'Erro ao atualizar pedido', details: error.message });
   }
 });
 // Adicionar foto a um pedido
