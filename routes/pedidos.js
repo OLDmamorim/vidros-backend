@@ -18,7 +18,13 @@ router.get('/', async (req, res) => {
         l.name as loja_name,
         u.name as user_name,
         (SELECT COUNT(*) FROM pedido_fotos WHERE pedido_id = p.id) as total_fotos,
-        (SELECT COUNT(*) FROM pedido_updates WHERE pedido_id = p.id) as total_updates
+        (SELECT COUNT(*) FROM pedido_updates WHERE pedido_id = p.id) as total_updates,
+        (SELECT MAX(created_at) FROM pedido_updates WHERE pedido_id = p.id) as ultima_atualizacao,
+        CASE 
+          WHEN p.ultima_visualizacao_loja IS NULL THEN true
+          WHEN (SELECT MAX(created_at) FROM pedido_updates WHERE pedido_id = p.id) > p.ultima_visualizacao_loja THEN true
+          ELSE false
+        END as tem_atualizacoes_novas
       FROM pedidos p
       JOIN lojas l ON p.loja_id = l.id
       JOIN users u ON p.user_id = u.id
@@ -131,6 +137,14 @@ router.get('/:id', async (req, res) => {
 
     const updatesResult = await pool.query(updatesQuery, [id]);
     pedido.updates = updatesResult.rows;
+
+    // Se for loja, atualizar última visualização
+    if (user.role === 'loja') {
+      await pool.query(
+        'UPDATE pedidos SET ultima_visualizacao_loja = NOW() WHERE id = $1',
+        [id]
+      );
+    }
 
     res.json(pedido);
   } catch (error) {
