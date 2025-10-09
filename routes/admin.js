@@ -97,6 +97,50 @@ router.delete('/lojas/:id', async (req, res) => {
   }
 });
 
+// Reset de pedidos de uma loja
+router.post('/lojas/:id/reset-pedidos', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verificar se a loja existe
+    const lojaCheck = await pool.query(
+      'SELECT id, name FROM lojas WHERE id = $1',
+      [id]
+    );
+
+    if (lojaCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Loja não encontrada' });
+    }
+
+    const loja = lojaCheck.rows[0];
+
+    // Contar pedidos antes de eliminar
+    const countResult = await pool.query(
+      'SELECT COUNT(*) as count FROM pedidos WHERE loja_id = $1',
+      [id]
+    );
+    const pedidosCount = parseInt(countResult.rows[0].count);
+
+    // Eliminar todos os pedidos da loja (CASCADE vai eliminar fotos e updates)
+    await pool.query(
+      'DELETE FROM pedidos WHERE loja_id = $1',
+      [id]
+    );
+
+    console.log(`✓ Reset de pedidos da loja ${loja.name} (ID: ${id}): ${pedidosCount} pedido(s) eliminado(s)`);
+
+    res.json({ 
+      message: `${pedidosCount} pedido(s) eliminado(s) da loja ${loja.name}`,
+      loja_id: id,
+      loja_name: loja.name,
+      pedidos_eliminados: pedidosCount
+    });
+  } catch (error) {
+    console.error('Erro ao fazer reset de pedidos da loja:', error);
+    res.status(500).json({ error: 'Erro ao fazer reset de pedidos da loja' });
+  }
+});
+
 // ===== GESTÃO DE UTILIZADORES =====
 
 // Listar todos os utilizadores
