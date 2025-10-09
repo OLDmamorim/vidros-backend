@@ -8,16 +8,16 @@ const { authenticateToken } = require('../middleware/auth');
 // Login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email e password são obrigatórios' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username e password são obrigatórios' });
     }
 
     // Buscar utilizador
     const result = await pool.query(
-      'SELECT u.*, l.name as loja_name FROM users u LEFT JOIN lojas l ON u.loja_id = l.id WHERE u.email = $1 AND u.active = true',
-      [email]
+      'SELECT u.*, l.name as loja_name FROM users u LEFT JOIN lojas l ON u.loja_id = l.id WHERE u.username = $1 AND u.active = true',
+      [username]
     );
 
     if (result.rows.length === 0) {
@@ -36,7 +36,8 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { 
         id: user.id, 
-        email: user.email, 
+        username: user.username,
+        email: user.email,
         role: user.role,
         loja_id: user.loja_id 
       },
@@ -48,6 +49,7 @@ router.post('/login', async (req, res) => {
       token,
       user: {
         id: user.id,
+        username: user.username,
         email: user.email,
         name: user.name,
         role: user.role,
@@ -65,7 +67,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT u.id, u.email, u.name, u.role, u.loja_id, l.name as loja_name FROM users u LEFT JOIN lojas l ON u.loja_id = l.id WHERE u.id = $1',
+      'SELECT u.id, u.username, u.email, u.name, u.role, u.loja_id, l.name as loja_name FROM users u LEFT JOIN lojas l ON u.loja_id = l.id WHERE u.id = $1',
       [req.user.id]
     );
 

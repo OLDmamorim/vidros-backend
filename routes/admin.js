@@ -103,7 +103,7 @@ router.delete('/lojas/:id', async (req, res) => {
 router.get('/users', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT u.id, u.email, u.name, u.role, u.loja_id, u.active, u.created_at, l.name as loja_name FROM users u LEFT JOIN lojas l ON u.loja_id = l.id ORDER BY u.name ASC'
+      'SELECT u.id, u.username, u.email, u.name, u.role, u.loja_id, u.active, u.created_at, l.name as loja_name FROM users u LEFT JOIN lojas l ON u.loja_id = l.id ORDER BY u.name ASC'
     );
     res.json(result.rows);
   } catch (error) {
@@ -115,10 +115,10 @@ router.get('/users', async (req, res) => {
 // Criar novo utilizador
 router.post('/users', async (req, res) => {
   try {
-    const { email, password, name, role, loja_id } = req.body;
+    const { username, email, password, name, role, loja_id } = req.body;
 
-    if (!email || !password || !name || !role) {
-      return res.status(400).json({ error: 'Email, password, nome e role são obrigatórios' });
+    if (!username || !password || !name || !role) {
+      return res.status(400).json({ error: 'Username, password, nome e role são obrigatórios' });
     }
 
     // Validar role
@@ -135,13 +135,16 @@ router.post('/users', async (req, res) => {
     const password_hash = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
-      'INSERT INTO users (email, password_hash, name, role, loja_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, role, loja_id, active, created_at',
-      [email, password_hash, name, role, role === 'loja' ? loja_id : null]
+      'INSERT INTO users (username, email, password_hash, name, role, loja_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, email, name, role, loja_id, active, created_at',
+      [username, email || null, password_hash, name, role, role === 'loja' ? loja_id : null]
     );
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
     if (error.code === '23505') { // Unique violation
+      if (error.constraint === 'users_username_key') {
+        return res.status(400).json({ error: 'Username já existe' });
+      }
       return res.status(400).json({ error: 'Email já existe' });
     }
     console.error('Erro ao criar utilizador:', error);
@@ -153,7 +156,7 @@ router.post('/users', async (req, res) => {
 router.put('/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { email, password, name, role, loja_id, active } = req.body;
+    const { username, email, password, name, role, loja_id, active } = req.body;
 
     let password_hash;
     if (password) {
@@ -161,8 +164,8 @@ router.put('/users/:id', async (req, res) => {
     }
 
     const result = await pool.query(
-      'UPDATE users SET email = COALESCE($1, email), password_hash = COALESCE($2, password_hash), name = COALESCE($3, name), role = COALESCE($4, role), loja_id = COALESCE($5, loja_id), active = COALESCE($6, active) WHERE id = $7 RETURNING id, email, name, role, loja_id, active',
-      [email, password_hash, name, role, loja_id, active, id]
+      'UPDATE users SET username = COALESCE($1, username), email = COALESCE($2, email), password_hash = COALESCE($3, password_hash), name = COALESCE($4, name), role = COALESCE($5, role), loja_id = COALESCE($6, loja_id), active = COALESCE($7, active) WHERE id = $8 RETURNING id, username, email, name, role, loja_id, active',
+      [username, email, password_hash, name, role, loja_id, active, id]
     );
 
     if (result.rows.length === 0) {
@@ -172,6 +175,9 @@ router.put('/users/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     if (error.code === '23505') {
+      if (error.constraint === 'users_username_key') {
+        return res.status(400).json({ error: 'Username já existe' });
+      }
       return res.status(400).json({ error: 'Email já existe' });
     }
     console.error('Erro ao atualizar utilizador:', error);
